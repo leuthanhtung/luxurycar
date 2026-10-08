@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-mbcorpo-title: 'MBCorpo S Title', 'MBCorpo STitle', 'Daimler CS', 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mbcorpo-text: 'MBCorpo S Text', 'MBCorpo S', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-mbcorpo-text);
+    background-color: #000000;
+    color: #FFFFFF;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-title, .font-display {
+    font-family: var(--font-mbcorpo-title);
+    letter-spacing: -0.015em;
+    font-weight: 600;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #222222;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #E10600;
+}
+
+/* Mercedes luxury pill buttons */
+.mb-pill-default {
+  background-color: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(12px);
+  color: #FFFFFF;
+  border-radius: 9999px;
+  padding: 0.625rem 1.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.mb-pill-default:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.mb-pill-primary {
+  background-color: #D11A2A;
+  color: #FFFFFF;
+  border-radius: 9999px;
+  padding: 0.625rem 1.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.mb-pill-primary:hover {
+  background-color: #B51221;
+}
+

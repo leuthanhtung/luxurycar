@@ -1,0 +1,6 @@
+{
+  "name": "STUTTGART MOTORS - Luxury Car Dealership & E-Commerce",
+  "description": "Nền tảng thương mại điện tử & đại lý phân phối xe sang Mercedes-Benz, Mercedes-AMG và Mercedes-Maybach độc quyền. Đặt cọc trực tuyến, đăng ký lái thử, dự toán lăn bánh và tùy biến xe cao cấp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

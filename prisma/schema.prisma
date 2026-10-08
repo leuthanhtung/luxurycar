@@ -1,0 +1,376 @@
+// Prisma Schema for Luxury Car Dealership & E-Commerce Platform
+// Mercedes-Benz, AMG & Maybach Specialized Retail Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Transitional JSON-backed records preserve the current API data shape while
+// the application moves from in-memory arrays to PostgreSQL.
+model AppRecord {
+  collection String
+  id         String
+  position   Int      @default(0)
+  payload    Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@id([collection, id])
+  @@index([collection, position])
+  @@map("app_records")
+}
+
+enum Role {
+  CUSTOMER
+  SALES_CONSULTANT
+  DEALERSHIP_MANAGER
+  ADMIN
+}
+
+enum Brand {
+  MERCEDES_BENZ
+  AMG
+  MAYBACH
+}
+
+enum BodyType {
+  SEDAN
+  SUV
+  COUPE
+  CABRIOLET
+  ESTATE
+}
+
+enum FuelType {
+  PETROL_BITURBO
+  DIESEL
+  EQ_ELECTRIC
+  PLUG_IN_HYBRID
+}
+
+enum Transmission {
+  AMG_SPEEDSHIFT_MCT_9G
+  G_TRONIC_9G
+  DIRECT_DRIVE_1SPEED
+}
+
+enum StockStatus {
+  IN_STOCK         // Sẵn sàng giao ngay
+  RESERVED         // Đã nhận cọc giữ xe
+  TRANSIT          // Đang về đại lý
+  ORDER_CONFIG     // Đặt hàng cá nhân hóa từ nhà máy
+  SOLD_OUT         // Đã bàn giao
+}
+
+enum OrderStatus {
+  DRAFT
+  DEPOSIT_PENDING  // Đang chờ thanh toán tiền cọc
+  DEPOSITED        // Đã thanh toán cọc thành công
+  CONTRACT_SIGNED  // Đã ký hợp đồng mua bán
+  VEHICLE_READY    // Xe đã về showroom, sẵn sàng bàn giao
+  DELIVERED        // Đã bàn giao xe cho khách
+  CANCELLED        // Đã hủy đơn
+  REFUNDED         // Đã hoàn cọc
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  VIETQR_BANK_TRANSFER
+  VNPAY
+  MOMO
+  STRIPE
+  CASH_AT_SHOWROOM
+}
+
+enum BookingStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// --------------------------------------------------------------------------
+// 1. Users & Authentication
+// --------------------------------------------------------------------------
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  passwordHash  String
+  name          String
+  phone         String?
+  avatar        String?
+  role          Role         @default(CUSTOMER)
+  idCardNumber  String?      // CCCD / Passport dùng làm hợp đồng
+  address       String?
+  city          String?
+  district      String?
+  
+  // Relations
+  orders        Order[]
+  testDrives    TestDriveBooking[]
+  wishlists     Wishlist[]
+  auditLogs     AuditLog[]
+  
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// --------------------------------------------------------------------------
+// 2. Categories & Sub-brands
+// --------------------------------------------------------------------------
+model Category {
+  id          String    @id @default(uuid())
+  name        String    // e.g., "S-Class Limousine", "G-Class Offroad", "AMG GT Sports"
+  slug        String    @unique
+  brand       Brand     @default(MERCEDES_BENZ)
+  description String?
+  bannerImage String?   @map("banner_image")
+  sortOrder   Int       @default(0) @map("sort_order")
+  
+  cars        Car[]
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("categories")
+}
+
+// --------------------------------------------------------------------------
+// 3. Vehicles (Car Inventory & Specifications)
+// --------------------------------------------------------------------------
+model Car {
+  id                String       @id @default(uuid())
+  title             String       // e.g. "Mercedes-AMG GT 63 S E Performance"
+  slug              String       @unique
+  vin               String       @unique // Số khung độc nhất (Chassis number)
+  stockNumber       String       @unique @map("stock_number") // Mã kho: e.g. MB-VN-2025-089
+  brand             Brand        @default(MERCEDES_BENZ)
+  bodyType          BodyType     @default(SEDAN) @map("body_type")
+  year              Int          @default(2025)
+  priceVnd          BigInt       @map("price_vnd") // Giá niêm yết (VND)
+  depositMinVnd     BigInt       @default(100000000) @map("deposit_min_vnd") // Tiền cọc tối thiểu (Thường 100-200 triệu)
+  stockStatus       StockStatus  @default(IN_STOCK) @map("stock_status")
+  isFeatured        Boolean      @default(false) @map("is_featured")
+
+  // Performance & Technical Specs
+  fuelType          FuelType     @default(PETROL_BITURBO) @map("fuel_type")
+  engine            String       // e.g. "4.0L V8 Biturbo + EQ Hybrid"
+  horsepower        Int          // e.g. 843 HP
+  torqueNm          Int          // e.g. 1470 Nm
+  acceleration      Float        // 0-100 km/h: 2.9 giây
+  topSpeedKmh       Int          // e.g. 316 km/h
+  transmission      Transmission @default(AMG_SPEEDSHIFT_MCT_9G)
+  drivetrain        String       @default("4MATIC+ All-Wheel Drive")
+  fuelEconomy       String?      // e.g. "7.9L / 100km"
+  electricRangeKm   Int?         @map("electric_range_km")
+
+  // Dimension & Capacities
+  dimensions        String?      // D x R x C (mm)
+  wheelbase         Int?         // Chiều dài cơ sở (mm)
+  curbWeightKg      Int?         @map("curb_weight_kg")
+  seatingCapacity   Int          @default(5) @map("seating_capacity")
+
+  // Colors & Aesthetic Attributes
+  exteriorColor     String       @map("exterior_color") // e.g. "Obsidian Black Metallic"
+  interiorColor     String       @map("interior_color") // e.g. "Nappa Exclusive Red Pepper"
+  wheelSpec         String?      @map("wheel_spec") // e.g. "21-inch AMG Forged Cross-Spoke"
+
+  description       String?      @db.Text
+  highlights        String[]     // Danh sách tính năng nổi bật (MBUX, Burmester 4D...)
+  
+  // Relations
+  categoryId        String       @map("category_id")
+  category          Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  images            CarImage[]
+  orderItems        OrderItem[]
+  testDrives        TestDriveBooking[]
+  wishlists         Wishlist[]
+
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  @@index([brand, stockStatus])
+  @@index([priceVnd])
+  @@index([bodyType])
+  @@map("cars")
+}
+
+// --------------------------------------------------------------------------
+// 4. Car Images & Media Galleries (Exterior, Interior, 360 Rotation)
+// --------------------------------------------------------------------------
+model CarImage {
+  id          String   @id @default(uuid())
+  carId       String   @map("car_id")
+  car         Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  imageUrl    String   @map("image_url")
+  viewType    String   @default("EXTERIOR") @map("view_type") // EXTERIOR, INTERIOR, DETAIL, 360_FRAME
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPrimary   Boolean  @default(false) @map("is_primary")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("car_images")
+}
+
+// --------------------------------------------------------------------------
+// 5. Orders & Online Vehicle Reservations
+// --------------------------------------------------------------------------
+model Order {
+  id               String          @id @default(uuid())
+  orderCode        String          @unique @map("order_code") // e.g. ORD-MB-77821
+  trackingCode     String          @unique @map("tracking_code") // Mã tra cứu hợp đồng & tiến độ bàn giao
+  
+  userId           String          @map("user_id")
+  user             User            @relation(fields: [userId], references: [id])
+  
+  // Financial breakdown
+  totalAmountVnd   BigInt          @map("total_amount_vnd")
+  depositAmountVnd BigInt          @map("deposit_amount_vnd")
+  remainingAmountVnd BigInt        @map("remaining_amount_vnd")
+  
+  // Customization choices
+  selectedExterior String?         @map("selected_exterior")
+  selectedInterior String?         @map("selected_interior")
+  selectedPackages String[]        @map("selected_packages") // Gói Night Package, Burmester High-End...
+  
+  // Delivery & Showroom
+  showroomLocation String          @map("showroom_location") // Showroom bàn giao xe
+  deliveryNotes    String?         @map("delivery_notes")
+  
+  status           OrderStatus     @default(DEPOSIT_PENDING)
+  paymentStatus    PaymentStatus   @default(PENDING) @map("payment_status")
+  
+  orderItems       OrderItem[]
+  payments         Payment[]
+
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String   @map("order_id")
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  carId       String   @map("car_id")
+  car         Car      @relation(fields: [carId], references: [id])
+  
+  unitPriceVnd BigInt  @map("unit_price_vnd")
+  quantity    Int      @default(1)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("order_items")
+}
+
+// --------------------------------------------------------------------------
+// 6. Payments & Deposit Transactions
+// --------------------------------------------------------------------------
+model Payment {
+  id              String          @id @default(uuid())
+  orderId         String          @map("order_id")
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  transactionId   String          @unique @map("transaction_id") // Mã giao dịch ngân hàng / cổng thanh toán
+  provider        PaymentProvider @default(VIETQR_BANK_TRANSFER)
+  amountVnd       BigInt          @map("amount_vnd")
+  status          PaymentStatus   @default(PENDING)
+  
+  paymentUrl      String?         @map("payment_url")
+  qrCodeUrl       String?         @map("qr_code_url")
+  rawResponse     Json?           @map("raw_response")
+  
+  paidAt          DateTime?       @map("paid_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@map("payments")
+}
+
+// --------------------------------------------------------------------------
+// 7. Test Drive Bookings (Đặt lịch lái thử)
+// --------------------------------------------------------------------------
+model TestDriveBooking {
+  id               String        @id @default(uuid())
+  bookingCode      String        @unique @map("booking_code") // e.g. TD-9921
+  
+  userId           String?       @map("user_id")
+  user             User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  carId            String        @map("car_id")
+  car              Car           @relation(fields: [carId], references: [id], onDelete: Cascade)
+  
+  customerName     String        @map("customer_name")
+  customerPhone    String        @map("customer_phone")
+  customerEmail    String        @map("customer_email")
+  driversLicenseNo String?       @map("drivers_license_no") // Số GPLX
+  
+  bookingDate      DateTime      @map("booking_date")
+  timeSlot         String        @map("time_slot") // "09:00 - 10:30", "14:00 - 15:30"
+  showroomLocation String        @map("showroom_location") // Showroom muốn trải nghiệm
+  
+  status           BookingStatus @default(PENDING_CONFIRMATION)
+  consultantNotes  String?       @map("consultant_notes")
+  customerFeedback String?       @map("customer_feedback")
+
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  @@index([bookingDate, showroomLocation])
+  @@map("test_drive_bookings")
+}
+
+// --------------------------------------------------------------------------
+// 8. Wishlist (Danh sách xe quan tâm)
+// --------------------------------------------------------------------------
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carId     String   @map("car_id")
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, carId])
+  @@map("wishlists")
+}
+
+// --------------------------------------------------------------------------
+// 9. Audit Log (Lịch sử thao tác & Bảo mật)
+// --------------------------------------------------------------------------
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action      String   // CREATE_CAR, UPDATE_PRICE, CONFIRM_DEPOSIT, CANCEL_ORDER
+  entity      String   // Car, Order, Payment
+  entityId    String   @map("entity_id")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  details     Json?
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
